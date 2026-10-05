@@ -1,0 +1,5 @@
+# CUDA 12 runtime for GPU transcription with faster-whisper (NVIDIA GPUs only).
+# Optional: without these, Whisper falls back to the CPU. setup.bat installs
+# this file only when nvidia-smi is found.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*

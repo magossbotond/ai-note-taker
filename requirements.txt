@@ -1,0 +1,17 @@
+# Minimum versions the app is written against. For an exact, reproducible set of
+# versions (what the app was tested with) install requirements-lock.txt instead.
+
+# GUI
+PyQt6>=6.6.0
+
+# Audio capture & I/O (Windows-only WASAPI loopback support)
+PyAudioWPatch>=0.2.12.7
+soundfile>=0.12.1
+numpy>=1.26.0
+
+# Local LLM client (talks to the Ollama daemon; run `ollama pull llama3.1` once)
+ollama>=0.4.0
+
+# Local speech-to-text (offline, no API keys required)
+faster-whisper>=1.0.0
+# GPU transcription needs requirements-gpu.txt too (NVIDIA only; setup.bat handles it)

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment / secrets
+.env
+
+# Audio & generated data
+data/recordings/*.wav
+data/transcripts/
+data/summaries/
+*.wav
+
+# Native binaries & AI models (large, downloaded separately)
+bin/
+models/
+*.bin
+*.gguf
+*.ggml
+
+# IDE / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Built launcher (rebuilt by setup.bat / tools\build_launcher.bat)
+AI Interview Notetaker.exe
+
+# Saved interviews (recordings, transcripts, notes)
+data/interviews/
+
+# Local assistant settings
+.claude/settings.local.json
