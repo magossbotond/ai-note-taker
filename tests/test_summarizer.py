@@ -4,6 +4,7 @@ import unittest
 
 import ollama
 
+from app.core.errors import OperationCancelled
 from app.summarization.summarizer import (
     CHUNK_PROMPT,
     NO_CONTENT_MESSAGE,
@@ -150,6 +151,19 @@ class GenerateNotesTests(unittest.TestCase):
             self.summarizer(client).generate_notes(make_transcript(sentences=5))
         self.assertEqual(len(client.chat_calls), 1)
         self.assertEqual(client.generate_calls, [0])  # still unloaded
+
+    def test_cancelling_between_chunks_stops_the_remaining_model_calls(self):
+        client = FakeClient(reply=lambda system, user: "• jegyzet")
+        calls = []
+        def cancel_after_two_calls():
+            calls.append(1)
+            return len(client.chat_calls) >= 2
+        with self.assertRaises(OperationCancelled):
+            self.summarizer(client).generate_notes(
+                make_transcript(sentences=100), should_cancel=cancel_after_two_calls
+            )
+        self.assertEqual(len(client.chat_calls), 2)   # 5+ chunks were planned
+        self.assertEqual(client.generate_calls, [0])  # the model is still unloaded
 
     def test_daemon_down_is_a_clear_error(self):
         client = FakeClient(chat_errors=[ConnectionError("refused")])

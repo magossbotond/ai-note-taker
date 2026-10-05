@@ -56,22 +56,29 @@ rules (e.g. GDPR) and make sure participants have agreed to the recording.
 | `app/audio/recorder.py` | Records mic + WASAPI loopback, follows default-device changes (e.g. headphones), writes one stereo WAV |
 | `app/transcription/transcriber.py` | faster-whisper wrapper: GPU when possible, CPU fallback, model unloaded after use to free VRAM |
 | `app/summarization/summarizer.py` | Ollama wrapper: prompts, map-reduce for long transcripts, typed results and errors |
-| `app/gui/main_window.py` | PyQt6 window; transcription and summarization run on background threads |
+| `app/core/pipeline.py` | The workflow (record, save, transcribe, summarize, save notes), its background threads and cancellation |
+| `app/core/config.py` | The app's settings (models, language, folders) |
+| `app/gui/main_window.py` | PyQt6 window: shows the pipeline's state, forwards clicks, handles closing safely |
 | `app/bootstrap.py` | Starts the app, logging and the last-resort error handler |
 
 Long interviews are summarized in parts (each part is condensed, then the notes
 are merged), because the model's context window is much smaller than a
-one-hour transcript.
+one-hour transcript. The recording is written to disk while it runs, so memory use
+stays low however long the interview is.
+
+If you close the window while a recording is running, the app asks whether to
+discard it. If you close it while transcribing or summarizing, it asks whether to
+cancel; the audio (and the transcript, if it was already done) are kept.
 
 ## Configuration
 
-There is no config file yet; the settings are constants in the code:
+Settings live in `app/core/config.py` (`AppConfig`):
 
-- Whisper model size and language: `TranscriptionWorker` in `app/gui/main_window.py`
-  (`"medium"`, `"hu"`)
-- LLM model and context size: `InterviewSummarizer(...)` arguments in
-  `app/summarization/summarizer.py` (`"llama3.1"`, `num_ctx=8192`)
-- The prompt that shapes the notes: `SYSTEM_PROMPT` in `summarizer.py`
+- `whisper_model` (`"medium"`; `"small"` is faster but less accurate) and `language` (`"hu"`)
+- `llm_model` (`"llama3.1"`) and `llm_context` (`8192` tokens)
+- `samplerate` and `interviews_dir`
+
+The prompt that shapes the notes is `SYSTEM_PROMPT` in `app/summarization/summarizer.py`.
 
 ## Tests
 
@@ -98,9 +105,9 @@ The tests need no microphone, GPU or running Ollama (a fake Ollama client is use
 
 ## Known limitations
 
-- Windows only. The Whisper language is fixed to Hungarian (English audio would
-  be transcribed badly) and the notes are always written in Hungarian.
-- The whole recording is kept in RAM until you press Stop, so very long
-  recordings (1 h+) need several GB of free memory.
-- Closing the window while transcription or summarization is still running
-  ends the app abruptly.
+- Windows only. The Whisper language is fixed to Hungarian in the config (English
+  audio would be transcribed badly) and the notes are always written in Hungarian.
+- Mic and system audio are recorded on separate channels, but Whisper transcribes
+  them mixed, so the notes don't say who (interviewer or candidate) said what.
+- Interview audio and transcripts are stored unencrypted and never deleted
+  automatically (see "Where things are saved").

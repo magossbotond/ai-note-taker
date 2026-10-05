@@ -19,6 +19,8 @@ from typing import Callable
 
 import ollama
 
+from app.core.errors import OperationCancelled
+
 logger = logging.getLogger(__name__)
 
 # Strong system prompt: pins the model's role, its job, and the output
@@ -189,11 +191,13 @@ class InterviewSummarizer:
         self.chunk_words = max(200, int((num_ctx - PROMPT_RESERVE_TOKENS) / TOKENS_PER_WORD))
         self._client = client or ollama.Client()
         self._force_cpu = False  # set after the GPU runner crashed once
+        self._should_cancel: Callable[[], bool] | None = None  # set per generate_notes() call
 
     def generate_notes(
         self,
         raw_transcript: str,
         on_progress: Callable[[str], None] | None = None,
+        should_cancel: Callable[[], bool] | None = None,
     ) -> SummaryResult:
         """Summarize a raw interview transcript into structured Hungarian HR notes.
 
@@ -201,6 +205,8 @@ class InterviewSummarizer:
             raw_transcript: The raw text produced by the Whisper transcriber.
             on_progress: Optional callback receiving short status messages; long
                 transcripts take several model calls.
+            should_cancel: Optional callable polled before every model call; when
+                it returns True the summary stops with OperationCancelled.
 
         Returns:
             A SummaryResult. Check `status` to tell a real summary (OK) from
@@ -209,12 +215,14 @@ class InterviewSummarizer:
         Raises:
             SummarizationError: If the Ollama call fails (daemon not running,
                 model not pulled, ...).
+            OperationCancelled: If should_cancel() returned True.
         """
         transcript = (raw_transcript or "").strip()
         if len(transcript.split()) < self.MIN_WORDS:
             return SummaryResult(NO_CONTENT_MESSAGE, SummaryStatus.TOO_SHORT)
 
         progress = on_progress or (lambda _message: None)
+        self._should_cancel = should_cancel
         try:
             notes = self._summarize(transcript, progress)
         except ConnectionError as exc:
@@ -262,6 +270,8 @@ class InterviewSummarizer:
         raise SummarizationError("The transcript is too long to summarize.")
 
     def _chat(self, system_prompt: str, user_content: str) -> str:
+        if self._should_cancel is not None and self._should_cancel():
+            raise OperationCancelled("summarization cancelled")
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
